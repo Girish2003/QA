@@ -1,0 +1,24 @@
+credentials:
+  usernames:
+    abhishek:
+      email: abhi20102.cb@rmkec.ac.in
+      logged_in: False 
+      name: Abhishek
+      password: test123 
+    logesh:
+      email: logi20120.cb@rmkec.ac.in
+      logged_in: False 
+      name: Logesh
+      password: test123
+    girish:
+      email: giri20108.cb@rmkec.ac.in
+      logged_in: False 
+      name: Girish
+      password: test123  
+cookie:
+  expiry_days: 30
+  key: some_signature_key 
+  name: some_cookie_name
+preauthorized:
+  emails:
+  - pabhishekm@gmail.com
