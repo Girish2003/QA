@@ -15,7 +15,9 @@ import speech_recognition as sr
 import streamlit as st
 import streamlit_authenticator as stauth
 import yaml
+import gtts as gt
 from yaml.loader import SafeLoader
+import os
 st.set_page_config("Chat PDF")  # Moved this line here
 
 
@@ -38,6 +40,14 @@ os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
 
 # st.set_page_config("Chat PDF")  # Move this line to the beginning
+
+def text_to_speech(text, language):
+    tts = gt.gTTS(text, lang=language)
+    tts.save("audio.mp3")
+    os.system("audio.mp3")
+    # audio = AudioSegment.from_file(tts.save(None))
+    # play(tts)
+
 
 def get_pdf_text(pdf_docs):
     text = ""
@@ -68,7 +78,7 @@ def get_conversational_chain():
     """
 
     model = ChatGoogleGenerativeAI(model="gemini-pro",
-                                   temperature=0.9)
+                                   temperature=0.1)
 
     prompt = PromptTemplate(template=prompt_template, input_variables=["context", "question"])
     chain = load_qa_chain(model, chain_type="stuff", prompt=prompt)
@@ -83,125 +93,95 @@ def user_input(user_question, detected_language):
     response = chain(
         {"input_documents": docs, "question": user_question}
         , return_only_outputs=True)
-    print('response',response)
+    # print('response',response)
     st.header("Answer")
     translated = GoogleTranslator(source='en', target=detected_language).translate(response["output_text"])
+    print('translated',translated)
     st.write(translated)
+    text_to_speech(translated,detected_language)
+
 
 def main():
-        authenticator.login()
-        if st.session_state["authentication_status"]:
-            st.title(f'Welcome *{st.session_state["name"]}*')
-            authenticator.logout()
-            st.title("Need Assistance ? Let us know more about your queries 💁")
-            st.header("Ask your doubts here ⬇️")
-            st.markdown("""
-                <style>
-                    .stButton>button {
-                        margin-top: 28px;
-                    }
-                </style>
-                """, unsafe_allow_html=True)
-            col1, col2 = st.columns([3, 1])
+        # login_button = st.button("Already registered ? Login", key="new_login_btn")
+        # print(login_button)
+        # if login_button is False:
+        #     print("Before REgister")
+        #     try:
+        #             email_of_registered_user, username_of_registered_user, name_of_registered_user = authenticator.register_user(preauthorization=False)
+        #             if email_of_registered_user:
+        #                 st.success('User registered successfully')
+        #                 with open('./config.yaml', 'w') as file:
+        #                     yaml.dump(config, file, default_flow_style=False)
+        #                 # login_button = True
+        #     except Exception as e:
+        #             st.error(e)
 
-            with col1:
-                user_question = st.text_input("")
+        # elif login_button is True: 
+            print("Before login")
+            authenticator.login()
+            print("After login")
+            if st.session_state["authentication_status"]:
+                st.balloons()
+                print("session change")
+                st.title(f'Welcome *{st.session_state["name"]}*')
+                authenticator.logout()
+                st.title("Need Assistance ? Let us know more about your queries 💁")
+                st.header("Ask your doubts here ⬇️")
+                st.markdown("""
+                    <style>
+                        .stButton>button {
+                            margin-top: 28px;
+                        }
+                    </style>
+                    """, unsafe_allow_html=True)
+                col1, col2 = st.columns([3, 1])
 
-            with col2:
-                button_clicked = st.button("Speak")  # Display the button
+                with col1:
+                    user_question = st.text_input("")
 
-            if button_clicked:
-                with st.spinner("Listening..."):
-                    r = sr.Recognizer()
-                    with sr.Microphone() as source:
-                        audio_input = None
-                        audio = r.listen(source)
-                        try:
-                            audio_input = r.recognize_google(audio)
-                            st.write("You said:", audio_input)
-                            detected_language = detect(audio_input)
-                            print('detected language',detected_language)
-                            translated = GoogleTranslator(source=detected_language, target='en').translate(audio_input)
-                            user_question = translated  
-                            user_input(translated, detected_language)
-                        except sr.UnknownValueError:
-                            st.write("Sorry, could not understand audio.")
-                        except sr.RequestError as e:
-                            st.write("Error occurred; {0}".format(e))
-                    st.success("Listened")
+                with col2:
+                    button_clicked = st.button("Speak")
 
-            elif user_question:
-                    detected_language = detect(user_question)
-                    translated = GoogleTranslator(source='auto', target='en').translate(user_question)
-                    user_input(translated, detected_language)
+                if button_clicked:
+                    with st.spinner("Listening..."):
+                        r = sr.Recognizer()
+                        with sr.Microphone() as source:
+                            audio_input = None
+                            audio = r.listen(source)
+                            try:
+                                audio_input = r.recognize_google(audio)
+                                st.write("You said:", audio_input)
+                                detected_language = detect(audio_input)
+                                print('detected language',detected_language)
+                                translated = GoogleTranslator(source=detected_language, target='en').translate(audio_input)
+                                user_question = translated  
+                                user_input(translated, detected_language)
+                            except sr.UnknownValueError:
+                                st.write("Sorry, could not understand audio.")
+                            except sr.RequestError as e:
+                                st.write("Error occurred; {0}".format(e))
+                        st.success("Listened")
+                        
 
-            with st.sidebar:
-                st.title("Menu:")
-                pdf_docs = st.file_uploader("Upload your PDF dataset Files and Click on the Submit & Process Button", accept_multiple_files=True)
-                if st.button("Submit & Process"):
-                    with st.spinner("Processing..."):
-                        raw_text = get_pdf_text(pdf_docs)
-                        text_chunks = get_text_chunks(raw_text)
-                        get_vector_store(text_chunks)
-                        st.success("Done")
-  
-        elif st.session_state["authentication_status"] is False:
-            st.error('Username/password is incorrect')
-        elif st.session_state["authentication_status"] is None:
-            st.warning('Please enter your username and password')
+                elif user_question:
+                        detected_language = detect(user_question)
+                        translated = GoogleTranslator(source='auto', target='en').translate(user_question)
+                        user_input(translated, detected_language)
 
-    # st.title("Need Assistance ? Let us know more about your queries 💁")
-    # st.header("Ask your doubts here ⬇️")
-    # st.markdown("""
-    #     <style>
-    #         .stButton>button {
-    #             margin-top: 28px;
-    #         }
-    #     </style>
-    #     """, unsafe_allow_html=True)
-    # col1, col2 = st.columns([3, 1])
-
-    # with col1:
-    #     user_question = st.text_input("")
-
-    # with col2:
-    #     button_clicked = st.button("Speak")  # Display the button
-
-    # if button_clicked:
-    #     with st.spinner("Listening..."):
-    #         r = sr.Recognizer()
-    #         with sr.Microphone() as source:
-    #             audio_input = None
-    #             audio = r.listen(source)
-    #             try:
-    #                 audio_input = r.recognize_google(audio)
-    #                 st.write("You said:", audio_input)
-    #                 detected_language = detect(audio_input)
-    #                 print('detected language',detected_language)
-    #                 translated = GoogleTranslator(source=detected_language, target='en').translate(audio_input)
-    #                 user_question = translated  
-    #                 user_input(translated, detected_language)
-    #             except sr.UnknownValueError:
-    #                 st.write("Sorry, could not understand audio.")
-    #             except sr.RequestError as e:
-    #                 st.write("Error occurred; {0}".format(e))
-    #         st.success("Listened")
-
-    # elif user_question:
-    #         detected_language = detect(user_question)
-    #         translated = GoogleTranslator(source='auto', target='en').translate(user_question)
-    #         user_input(translated, detected_language)
-
-    # with st.sidebar:
-    #     st.title("Menu:")
-    #     pdf_docs = st.file_uploader("Upload your PDF dataset Files and Click on the Submit & Process Button", accept_multiple_files=True)
-    #     if st.button("Submit & Process"):
-    #         with st.spinner("Processing..."):
-    #             raw_text = get_pdf_text(pdf_docs)
-    #             text_chunks = get_text_chunks(raw_text)
-    #             get_vector_store(text_chunks)
-    #             st.success("Done")
-    # st.set_page_config("Chat PDF")  # Moved this line here
+                with st.sidebar:
+                    st.title("Menu:")
+                    pdf_docs = st.file_uploader("Upload your PDF dataset Files and Click on the Submit & Process Button", accept_multiple_files=True)
+                    if st.button("Submit & Process"):
+                        with st.spinner("Processing..."):
+                            raw_text = get_pdf_text(pdf_docs)
+                            text_chunks = get_text_chunks(raw_text)
+                            get_vector_store(text_chunks)
+                            st.success("Done")
+    
+            elif st.session_state["authentication_status"] is False:
+                st.error('Username/password is incorrect')
+            elif st.session_state["authentication_status"] is None:
+                st.warning('Please enter your username and password')
 
 if __name__ == "__main__":
     main()
