@@ -18,7 +18,11 @@ import yaml
 import gtts as gt
 from yaml.loader import SafeLoader
 import os
-st.set_page_config("Chat PDF")  # Moved this line here
+from lingua import Language, LanguageDetectorBuilder
+st.set_page_config("Chat PDF") 
+
+languages = [Language.ENGLISH, Language.FRENCH, Language.GERMAN, Language.SPANISH, Language.TAMIL, Language.HINDI]
+detector = LanguageDetectorBuilder.from_languages(*languages).build()
 
 
 with open('./config.yaml') as file:
@@ -32,21 +36,17 @@ authenticator = stauth.Authenticate(
     config['preauthorized']
 )
 
-# import auth.py
-# from google.cloud import language_v1
 
 load_dotenv()
 os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=os.getenv("GOOGLE_API_KEY"))
+API_KEY = os.getenv("GOOGLE_API_KEY")
 
-# st.set_page_config("Chat PDF")  # Move this line to the beginning
 
 def text_to_speech(text, language):
     tts = gt.gTTS(text, lang=language)
     tts.save("audio.mp3")
     os.system("audio.mp3")
-    # audio = AudioSegment.from_file(tts.save(None))
-    # play(tts)
 
 
 def get_pdf_text(pdf_docs):
@@ -87,7 +87,7 @@ def get_conversational_chain():
 
 def user_input(user_question, detected_language):
     embeddings = GoogleGenerativeAIEmbeddings(model="models/embedding-001")
-    new_db = FAISS.load_local("faiss_index", embeddings)
+    new_db = FAISS.load_local("faiss_index", embeddings, allow_dangerous_deserialization=True)
     docs = new_db.similarity_search(user_question)
     chain = get_conversational_chain()
     response = chain(
@@ -96,6 +96,7 @@ def user_input(user_question, detected_language):
     # print('response',response)
     st.header("Answer")
     translated = GoogleTranslator(source='en', target=detected_language).translate(response["output_text"])
+    print('detected language',detected_language)
     print('translated',translated)
     st.write(translated)
     text_to_speech(translated,detected_language)
@@ -151,7 +152,9 @@ def main():
                             try:
                                 audio_input = r.recognize_google(audio)
                                 st.write("You said:", audio_input)
-                                detected_language = detect(audio_input)
+                                # detected_language = detect(audio_input)
+                                language = detector.detect_language_of(user_question)
+                                detected_language = language.iso_code_639_1.name.lower()
                                 print('detected language',detected_language)
                                 translated = GoogleTranslator(source=detected_language, target='en').translate(audio_input)
                                 user_question = translated  
@@ -164,8 +167,13 @@ def main():
                         
 
                 elif user_question:
-                        detected_language = detect(user_question)
-                        translated = GoogleTranslator(source='auto', target='en').translate(user_question)
+                        # detected_language = detect(user_question)
+                        language = detector.detect_language_of(user_question)
+                        detected_language = language.iso_code_639_1.name.lower()
+                        print('language detected',language.iso_code_639_1.name.lower())
+                        print('detect 1',detected_language)
+                        translated = GoogleTranslator(source=detected_language, target='en').translate(user_question)
+                        print('tranlated 1',translated)
                         user_input(translated, detected_language)
 
                 with st.sidebar:
