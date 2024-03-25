@@ -153,7 +153,7 @@ def main():
                                 audio_input = r.recognize_google(audio)
                                 st.write("You said:", audio_input)
                                 # detected_language = detect(audio_input)
-                                language = detector.detect_language_of(user_question)
+                                language = detector.detect_language_of(audio_input)
                                 detected_language = language.iso_code_639_1.name.lower()
                                 print('detected language',detected_language)
                                 translated = GoogleTranslator(source=detected_language, target='en').translate(audio_input)
